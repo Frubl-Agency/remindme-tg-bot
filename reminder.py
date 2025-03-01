@@ -15,11 +15,11 @@ async def check_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
     current_date = now.strftime('%Y-%m-%d')
     weekday = now.weekday()
     current_day = WEEKDAY_MAP[weekday]
-    
+
     logger.info(f"Checking reminders at {current_time}")
-    
-    # Check all tasks
-    for user_id, user_tasks in list(tasks.items()):
+
+    # Iterate through tasks for each chat (group or private)
+    for chat_id, user_tasks in list(tasks.items()):
         for i, task in enumerate(list(user_tasks)):
             # Check if time matches
             if task['time'] == current_time:
@@ -42,12 +42,15 @@ async def check_reminders(context: ContextTypes.DEFAULT_TYPE) -> None:
                 
                 # Send reminder if conditions match
                 if should_run:
-                    await send_reminder(context, user_id, task['message'])
+                    thread_id = task.get('message_thread_id')
+                    await send_reminder(context, chat_id, task['message'], thread_id)
 
-async def send_reminder(context, user_id, message):
-    """Send a reminder to the user."""
+async def send_reminder(context, chat_id, message, thread_id=None):
     try:
-        await context.bot.send_message(chat_id=user_id, text=message)
-        logger.info(f"Sent reminder to {user_id}: {message}")
+        kwargs = {}
+        if thread_id is not None:
+            kwargs["message_thread_id"] = thread_id
+        await context.bot.send_message(chat_id=chat_id, text=message, **kwargs)
+        logger.info(f"Sent reminder to {chat_id} (thread: {thread_id}): {message}")
     except Exception as e:
-        logger.error(f"Error sending reminder to {user_id}: {e}")
+        logger.error(f"Error sending reminder to {chat_id}: {e}")

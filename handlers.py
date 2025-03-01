@@ -222,24 +222,34 @@ async def custom_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return TIME
 
 async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    # Check if it's a callback query for cancel
     if update.callback_query and update.callback_query.data == "cancel":
         await update.callback_query.answer()
         await update.callback_query.message.edit_text("Reminder creation cancelled.")
         return ConversationHandler.END
 
+    # Use the chat id instead of the user id
     chat_id = str(update.effective_chat.id)
+    
+    # Capture message_thread_id if available (for forum topics)
+    thread_id = None
+    if update.effective_message and hasattr(update.effective_message, 'message_thread_id'):
+        thread_id = update.effective_message.message_thread_id
+
     time_str = update.message.text
 
     try:
         # Validate time format
         time_obj = datetime.strptime(time_str, '%H:%M').time()
-        
-        # Create task data
+
+        # Create task data and store thread id if available
         task_data = {
             'message': context.user_data['message'],
             'type': context.user_data['type'],
             'time': time_str
         }
+        if thread_id is not None:
+            task_data['message_thread_id'] = thread_id
 
         if task_data['type'] == ONE_TIME:
             task_data['date'] = context.user_data['date']
@@ -253,8 +263,8 @@ async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 
         tasks[chat_id].append(task_data)
         save_tasks(tasks)
-        
-        # Format task description for confirmation message
+
+        # Format task description for confirmation
         if task_data['type'] == ONE_TIME:
             task_desc = f"on {task_data['date']}"
         else:  # DAILY
@@ -269,10 +279,8 @@ async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             f"I'll remind you: \"{task_data['message']}\"\n"
             f"⏰ {task_desc} at {time_str}"
         )
-        
-        # Clear user data
-        context.user_data.clear()
 
+        context.user_data.clear()
         return ConversationHandler.END
 
     except ValueError:
