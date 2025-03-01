@@ -38,14 +38,25 @@ def main() -> None:
             MessageHandler(filters.Regex(r'^➕ Add Reminder$'), add_task)
         ],
         states={
-            MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, task_message)],
-            DATE_TYPE: [CallbackQueryHandler(date_type, pattern=r'^(one_time|daily)$')],
+            MESSAGE: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, task_message),
+                CallbackQueryHandler(task_message, pattern=r'^cancel$')
+            ],
+            DATE_TYPE: [
+                CallbackQueryHandler(date_type)
+            ],
             DATE: [
                 MessageHandler(filters.TEXT & ~filters.COMMAND, date_input),
-                CallbackQueryHandler(date_input, pattern=r'^(everyday|custom)$')
+                CallbackQueryHandler(date_input)
             ],
-            CUSTOM_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, custom_days)],
-            TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, time_input)]
+            CUSTOM_DAYS: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, custom_days),
+                CallbackQueryHandler(cancel, pattern=r'^cancel$')
+            ],
+            TIME: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND, time_input),
+                CallbackQueryHandler(cancel, pattern=r'^cancel$')
+            ]
         },
         fallbacks=[CommandHandler('cancel', cancel)],
         per_message=False

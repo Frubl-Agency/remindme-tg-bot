@@ -35,13 +35,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def add_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start the add task conversation."""
+    # Add a cancel button
+    keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Let's add a new reminder! First, what would you like me to remind you about?"
+        "Let's add a new reminder! First, what would you like me to remind you about?",
+        reply_markup=reply_markup
     )
     return MESSAGE
 
 async def task_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Store the task message and ask for date type."""
+    # Check if this is a cancel button click
+    if update.callback_query and update.callback_query.data == "cancel":
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text("Reminder creation cancelled.")
+        return ConversationHandler.END
+    
     context.user_data['message'] = update.message.text
     
     # Create inline keyboard with date type options with improved UI
@@ -49,7 +60,8 @@ async def task_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
         [
             InlineKeyboardButton("📅 One-time reminder", callback_data='one_time'),
             InlineKeyboardButton("🔄 Recurring reminder", callback_data='daily')
-        ]
+        ],
+        [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]  # Cancel button
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -64,12 +76,22 @@ async def date_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     await query.answer()
     
+    # Check if user clicked cancel
+    if query.data == "cancel":
+        await query.edit_message_text("Reminder creation cancelled.")
+        return ConversationHandler.END
+    
     task_type = query.data
     context.user_data['type'] = task_type
     
     if task_type == ONE_TIME:
+        # Add cancel button
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await query.edit_message_text(
-            "📅 Please enter the due date in YYYY-MM-DD format (e.g., 2025-03-15)."
+            "📅 Please enter the due date in YYYY-MM-DD format (e.g., 2025-03-15).",
+            reply_markup=reply_markup
         )
         return DATE
     else:  # DAILY
@@ -78,7 +100,8 @@ async def date_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             [
                 InlineKeyboardButton("🔄 Every day", callback_data='everyday'),
                 InlineKeyboardButton("📆 Select days", callback_data='custom')
-            ]
+            ],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]  # Cancel button
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
@@ -95,19 +118,34 @@ async def date_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
         await query.answer()
         
+        # Check if user clicked cancel
+        if query.data == "cancel":
+            await query.edit_message_text("Reminder creation cancelled.")
+            return ConversationHandler.END
+        
         frequency = query.data
         context.user_data['frequency'] = frequency
         
         if frequency == 'custom':
+            # Add cancel button
+            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await query.edit_message_text(
                 "Please enter the first two letters of each day you want reminders, "
                 "separated by commas (e.g., Mo,Tu,Fr for Monday, Tuesday, Friday).\n\n"
-                "Options: Mo, Tu, We, Th, Fr, Sa, Su"
+                "Options: Mo, Tu, We, Th, Fr, Sa, Su",
+                reply_markup=reply_markup
             )
             return CUSTOM_DAYS
         else:  # everyday
+            # Add cancel button
+            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await query.edit_message_text(
-                "Please enter the time for your reminder in HH:MM format (e.g., 11:50)."
+                "Please enter the time for your reminder in HH:MM format (e.g., 11:50).",
+                reply_markup=reply_markup
             )
             return TIME
     
@@ -122,19 +160,35 @@ async def date_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             # Store the date
             context.user_data['date'] = date_str
             
+            # Add cancel button
+            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
-                "Please enter the time for your reminder in HH:MM format (e.g., 11:50)."
+                "Please enter the time for your reminder in HH:MM format (e.g., 11:50).",
+                reply_markup=reply_markup
             )
             return TIME
         
         except ValueError:
+            # Add cancel button
+            keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            
             await update.message.reply_text(
-                "Invalid date format. Please use YYYY-MM-DD format (e.g., 2025-03-15)."
+                "Invalid date format. Please use YYYY-MM-DD format (e.g., 2025-03-15).",
+                reply_markup=reply_markup
             )
             return DATE
 
 async def custom_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Process custom days for recurring reminders."""
+    # Check if it's a callback query for cancel
+    if update.callback_query and update.callback_query.data == "cancel":
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text("Reminder creation cancelled.")
+        return ConversationHandler.END
+        
     days_input = update.message.text
     
     # Parse and validate the days
@@ -143,22 +197,38 @@ async def custom_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     # Check if all days are valid
     invalid_days = [day for day in days if day not in VALID_DAYS]
     if invalid_days:
+        # Add cancel button
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await update.message.reply_text(
             f"Invalid day(s): {', '.join(invalid_days)}. "
-            f"Please use: Mo, Tu, We, Th, Fr, Sa, Su"
+            f"Please use: Mo, Tu, We, Th, Fr, Sa, Su",
+            reply_markup=reply_markup
         )
         return CUSTOM_DAYS
     
     # Store the days
     context.user_data['days'] = days
     
+    # Add cancel button
+    keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
     await update.message.reply_text(
-        "Please enter the time for your reminder in HH:MM format (e.g., 11:50)."
+        "Please enter the time for your reminder in HH:MM format (e.g., 11:50).",
+        reply_markup=reply_markup
     )
     return TIME
 
 async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Process time input and save the task."""
+    # Check if it's a callback query for cancel
+    if update.callback_query and update.callback_query.data == "cancel":
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text("Reminder creation cancelled.")
+        return ConversationHandler.END
+        
     user_id = str(update.effective_user.id)
     time_str = update.message.text
     
@@ -209,8 +279,13 @@ async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return ConversationHandler.END
     
     except ValueError:
+        # Add cancel button
+        keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
         await update.message.reply_text(
-            "Invalid time format. Please use HH:MM format (e.g., 11:50)."
+            "Invalid time format. Please use HH:MM format (e.g., 11:50).",
+            reply_markup=reply_markup
         )
         return TIME
 
@@ -308,9 +383,14 @@ async def handle_delete_callback(update: Update, context: ContextTypes.DEFAULT_T
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel the current operation."""
-    context.user_data.clear()
+    # Check if it's a callback query
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.message.edit_text("Reminder creation cancelled.")
+    else:
+        await update.message.reply_text("Operation cancelled.")
     
-    await update.message.reply_text("Operation cancelled.")
+    context.user_data.clear()
     return ConversationHandler.END
 
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
