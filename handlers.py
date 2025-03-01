@@ -222,16 +222,14 @@ async def custom_days(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int
     return TIME
 
 async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """Process time input and save the task."""
-    # Check if it's a callback query for cancel
     if update.callback_query and update.callback_query.data == "cancel":
         await update.callback_query.answer()
         await update.callback_query.message.edit_text("Reminder creation cancelled.")
         return ConversationHandler.END
-        
-    user_id = str(update.effective_user.id)
+
+    chat_id = str(update.effective_chat.id)
     time_str = update.message.text
-    
+
     try:
         # Validate time format
         time_obj = datetime.strptime(time_str, '%H:%M').time()
@@ -242,19 +240,18 @@ async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             'type': context.user_data['type'],
             'time': time_str
         }
-        
+
         if task_data['type'] == ONE_TIME:
             task_data['date'] = context.user_data['date']
         else:  # DAILY
             task_data['frequency'] = context.user_data['frequency']
             if task_data['frequency'] == 'custom':
                 task_data['days'] = context.user_data['days']
-        
-        # Add the task
-        if user_id not in tasks:
-            tasks[user_id] = []
-        
-        tasks[user_id].append(task_data)
+
+        if chat_id not in tasks:
+            tasks[chat_id] = []
+
+        tasks[chat_id].append(task_data)
         save_tasks(tasks)
         
         # Format task description for confirmation message
@@ -266,7 +263,7 @@ async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             else:  # custom
                 days_full = [DAY_NAMES[day] for day in task_data['days']]
                 task_desc = f"every {', '.join(days_full)}"
-        
+
         await update.message.reply_text(
             f"✅ Task added successfully!\n\n"
             f"I'll remind you: \"{task_data['message']}\"\n"
@@ -275,9 +272,9 @@ async def time_input(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         
         # Clear user data
         context.user_data.clear()
-        
+
         return ConversationHandler.END
-    
+
     except ValueError:
         # Add cancel button
         keyboard = [[InlineKeyboardButton("❌ Cancel", callback_data="cancel")]]
