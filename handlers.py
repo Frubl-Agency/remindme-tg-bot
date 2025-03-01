@@ -13,11 +13,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Send a welcome message when the command /start is issued."""
     user = update.effective_user
     
-    # Create keyboard with command buttons
+    # Create keyboard with user-friendly button labels
     keyboard = [
-        ['/add'],
-        ['/list'],
-        ['/delete']
+        ['➕ Add Reminder'],
+        ['📋 My Reminders'],
+        ['🗑️ Delete Reminder']
     ]
     reply_markup = ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
     
@@ -44,11 +44,11 @@ async def task_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     """Store the task message and ask for date type."""
     context.user_data['message'] = update.message.text
     
-    # Create inline keyboard with date type options
+    # Create inline keyboard with date type options with improved UI
     keyboard = [
         [
-            InlineKeyboardButton("Specific day", callback_data='one_time'),
-            InlineKeyboardButton("Daily reminder", callback_data='daily')
+            InlineKeyboardButton("📅 One-time reminder", callback_data='one_time'),
+            InlineKeyboardButton("🔄 Recurring reminder", callback_data='daily')
         ]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -69,15 +69,15 @@ async def date_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     
     if task_type == ONE_TIME:
         await query.edit_message_text(
-            "Please enter the due date in YYYY-MM-DD format (e.g., 2025-03-15)."
+            "📅 Please enter the due date in YYYY-MM-DD format (e.g., 2025-03-15)."
         )
         return DATE
     else:  # DAILY
         # Create inline keyboard with daily options
         keyboard = [
             [
-                InlineKeyboardButton("Everyday", callback_data='everyday'),
-                InlineKeyboardButton("Custom", callback_data='custom')
+                InlineKeyboardButton("🔄 Every day", callback_data='everyday'),
+                InlineKeyboardButton("📆 Select days", callback_data='custom')
             ]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -251,31 +251,37 @@ async def delete_task(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
         await update.message.reply_text("You don't have any reminders to delete.")
         return
     
-    # Create inline keyboard with task options
+    # Create inline keyboard with improved task options
     keyboard = []
     for i, task in enumerate(user_tasks):
         # Format task description
         if task['type'] == ONE_TIME:
-            task_desc = f"on {task['date']}"
+            task_desc = f"📅 {task['date']}"
         else:  # DAILY
             if task['frequency'] == 'everyday':
-                task_desc = "every day"
+                task_desc = "🔄 Every day"
             else:  # custom
                 days_full = [DAY_NAMES[day] for day in task['days']]
-                task_desc = f"every {', '.join(days_full)}"
+                days_text = ', '.join(days_full)
+                task_desc = f"🔄 Every {days_text}"
         
-        button_text = f"{i+1}. \"{task['message']}\" ({task_desc})"
+        # Truncate message if too long for button
+        message = task['message']
+        if len(message) > 30:
+            message = message[:27] + "..."
+            
+        button_text = f"🗑️ {i+1}. \"{message}\" • {task_desc} • ⏰ {task['time']}"
         keyboard.append([InlineKeyboardButton(button_text, callback_data=f"delete_{i}")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
-        "Select a task to delete:",
+        "Select a reminder to delete:",
         reply_markup=reply_markup
     )
 
 async def handle_delete_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Process delete task selection."""
+    """Process delete task selection with improved UX."""
     query = update.callback_query
     await query.answer()
     user_id = str(query.from_user.id)
@@ -285,11 +291,20 @@ async def handle_delete_callback(update: Update, context: ContextTypes.DEFAULT_T
     
     # Delete the task
     if user_id in tasks and 0 <= task_index < len(tasks[user_id]):
+        # Get task details for confirmation message
+        task = tasks[user_id][task_index]
+        task_message = task['message']
+        
+        # Delete the task
         del tasks[user_id][task_index]
         save_tasks(tasks)
-        await query.edit_message_text(f"✅ Task deleted successfully!")
+        
+        await query.edit_message_text(
+            f"✅ Reminder deleted successfully!\n\n"
+            f"Deleted: \"{task_message}\""
+        )
     else:
-        await query.edit_message_text(f"❌ Failed to delete task. Please try again.")
+        await query.edit_message_text(f"❌ Failed to delete reminder. Please try again.")
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Cancel the current operation."""

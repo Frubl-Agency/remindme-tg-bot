@@ -33,7 +33,10 @@ def main() -> None:
     
     # Add conversation handler for adding tasks
     add_task_conv = ConversationHandler(
-        entry_points=[CommandHandler('add', add_task)],
+        entry_points=[
+            CommandHandler('add', add_task),
+            MessageHandler(filters.Regex(r'^➕ Add Reminder$'), add_task)
+        ],
         states={
             MESSAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, task_message)],
             DATE_TYPE: [CallbackQueryHandler(date_type, pattern=r'^(one_time|daily)$')],
@@ -52,7 +55,9 @@ def main() -> None:
     application.add_handler(CommandHandler('start', start))
     application.add_handler(add_task_conv)
     application.add_handler(CommandHandler('list', list_tasks))
+    application.add_handler(MessageHandler(filters.Regex(r'^📋 My Reminders$'), list_tasks))
     application.add_handler(CommandHandler('delete', delete_task))
+    application.add_handler(MessageHandler(filters.Regex(r'^🗑️ Delete Reminder$'), delete_task))
     application.add_handler(CallbackQueryHandler(handle_delete_callback, pattern=r'^delete_'))
     
     # Add error handler
